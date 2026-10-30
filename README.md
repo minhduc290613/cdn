@@ -1,4 +1,4 @@
-# ProCDN 2.1
+# ProCDN 
 
 ProCDN is a Cloudflare Workers CDN and asset proxy with GitHub delivery, configurable upstream sources, Cloudflare Cache API caching, an admin dashboard, API keys, settings, counters and recent logs.
 
