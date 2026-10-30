@@ -1,0 +1,13 @@
+{
+  "name": "procdn",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Multi-source CDN proxy and admin dashboard on Cloudflare Workers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

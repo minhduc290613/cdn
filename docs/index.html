@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1020">
+  <title>ProCDN — Hướng dẫn triển khai trên Cloudflare Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <span class="badge">DEPLOYMENT DOCUMENTATION</span>
+  <h1>Pro<span>CDN</span></h1>
+  <p>Hướng dẫn triển khai CDN trên Cloudflare bằng Dashboard, cấu hình D1, KV và thiết lập tài khoản quản trị.</p>
+</header>
+
+<main>
+  <section>
+    <h2>Bắt đầu</h2>
+    <p>ProCDN cung cấp CDN cho tài nguyên từ GitHub và các nguồn tùy chỉnh, sử dụng Cloudflare Workers để xử lý request và cache.</p>
+    <p>Trước khi bắt đầu, cần có tài khoản Cloudflare và source code ProCDN đã được chuẩn bị để deploy.</p>
+    <p><a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">Mở Cloudflare Dashboard ↗</a></p>
+    <div class="note">Tên binding phải khớp chính xác với code: D1 dùng <code>db</code>, KV dùng <code>kv</code>.</div>
+  </section>
+
+  <section>
+    <h2><span class="step">1</span>Tạo D1 Database</h2>
+    <ol>
+      <li>Mở Cloudflare Dashboard.</li>
+      <li>Vào <b>Storage & databases → D1 SQL Database</b>.</li>
+      <li>Chọn <b>Create database</b>.</li>
+      <li>Đặt tên, ví dụ <code>procdn-db</code>.</li>
+      <li>Nhấn Create để hoàn tất.</li>
+    </ol>
+    <p>D1 lưu dữ liệu quản trị và các dữ liệu có cấu trúc của ứng dụng.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">2</span>Khởi tạo schema database</h2>
+    <ol>
+      <li>Mở database vừa tạo.</li>
+      <li>Mở file <code>migrations/0001_init.sql</code> trong source ProCDN.</li>
+      <li>Sao chép nội dung SQL.</li>
+      <li>Dán vào mục Console/SQL Console của D1 và chạy truy vấn.</li>
+      <li>Kiểm tra các bảng đã được tạo thành công.</li>
+    </ol>
+    <div class="note">Chỉ chạy SQL schema đúng với phiên bản source đang dùng. Không chạy lại các câu lệnh phá hủy dữ liệu trên database đang hoạt động.</div>
+  </section>
+
+  <section>
+    <h2><span class="step">3</span>Tạo KV Namespace</h2>
+    <ol>
+      <li>Trong Cloudflare Dashboard, mở <b>Storage & databases → Workers KV</b>.</li>
+      <li>Chọn tạo namespace mới.</li>
+      <li>Đặt tên, ví dụ <code>procdn-kv</code>.</li>
+      <li>Nhấn Create.</li>
+    </ol>
+    <p>KV dùng để lưu dữ liệu key/value phù hợp với thiết kế ứng dụng. Không dùng KV thay thế cho các truy vấn quan hệ của D1.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">4</span>Deploy Worker</h2>
+    <ol>
+      <li>Mở <b>Workers & Pages</b>.</li>
+      <li>Chọn tạo Worker mới hoặc mở Worker ProCDN đã có.</li>
+      <li>Tải lên hoặc triển khai source theo phương thức được dự án hỗ trợ.</li>
+      <li>Đặt tên Worker, ví dụ <code>procdn</code>.</li>
+      <li>Kiểm tra entry point và cấu hình tương thích với Cloudflare Workers.</li>
+    </ol>
+    <div class="note">Không phải mọi dự án đều có thể deploy chỉ bằng cách tải một file JavaScript lên Dashboard. Nếu source dùng npm packages, module imports hoặc bước build, cần build source theo hướng dẫn của dự án trước.</div>
+  </section>
+
+  <section>
+    <h2><span class="step">5</span>Thêm D1 Binding</h2>
+    <ol>
+      <li>Mở Worker ProCDN.</li>
+      <li>Vào <b>Settings → Bindings</b>.</li>
+      <li>Chọn <b>Add binding → D1 database</b>.</li>
+      <li>Variable name nhập <code>db</code>.</li>
+      <li>Ở phần database, chọn <code>procdn-db</code> hoặc database của người dùng.</li>
+      <li>Lưu cấu hình.</li>
+    </ol>
+    <p>Code truy cập binding bằng <code>env.db</code>.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">6</span>Thêm KV Binding</h2>
+    <ol>
+      <li>Trong cùng trang <b>Settings → Bindings</b>, chọn Add binding.</li>
+      <li>Chọn loại <b>KV namespace</b>.</li>
+      <li>Variable name nhập <code>kv</code>.</li>
+      <li>Chọn namespace đã tạo ở bước 3.</li>
+      <li>Lưu cấu hình.</li>
+    </ol>
+    <p>Code truy cập binding bằng <code>env.kv</code>.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">7</span>Cấu hình SESSION_SECRET</h2>
+    <ol>
+      <li>Trong Worker, mở <b>Settings → Variables and Secrets</b> hoặc mục cấu hình biến tương ứng trên Dashboard.</li>
+      <li>Thêm secret có tên <code>SESSION_SECRET</code>.</li>
+      <li>Dùng một chuỗi ngẫu nhiên dài, bí mật và khó đoán.</li>
+      <li>Lưu secret rồi deploy lại nếu Dashboard yêu cầu.</li>
+    </ol>
+    <div class="note">Không đưa SESSION_SECRET vào mã frontend, GitHub công khai hoặc file JavaScript được phân phối qua CDN. File .env trên máy local không tự động được áp dụng vào Worker production.</div>
+  </section>
+
+  <section>
+    <h2><span class="step">8</span>Tạo tài khoản quản trị</h2>
+    <ol>
+      <li>Mở URL Worker sau khi deploy.</li>
+      <li>Nếu chưa có tài khoản quản trị, trang setup sẽ yêu cầu tạo username và password.</li>
+      <li>Hoàn tất setup và đăng nhập.</li>
+      <li>Sau khi tạo quản trị viên, trang setup cần bị khóa để tránh người khác chiếm quyền.</li>
+    </ol>
+    <div class="note success">Chỉ tạo tài khoản trên website sau khi đã cấu hình D1 binding và khởi tạo schema thành công.</div>
+  </section>
+
+  <section>
+    <h2><span class="step">9</span>Kiểm tra CDN</h2>
+    <p>Ví dụ URL GitHub CDN theo định dạng ProCDN:</p>
+    <pre><code>/gh/OWNER/REPO@VERSION/path/to/file.js</code></pre>
+    <p>Thay OWNER, REPO, VERSION và đường dẫn bằng tài nguyên có thật trong một repository GitHub công khai.</p>
+    <p>Kiểm tra:</p>
+    <ul>
+      <li>File trả về đúng nội dung và Content-Type.</li>
+      <li>Đường dẫn không tồn tại trả về lỗi phù hợp.</li>
+      <li>Header cache phản ánh đúng trạng thái HIT/MISS nếu tính năng này đã được triển khai.</li>
+      <li>Các trang quản trị yêu cầu đăng nhập.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Xử lý lỗi thường gặp</h2>
+    <h3>Thiếu binding db hoặc kv</h3>
+    <p>Kiểm tra tên biến binding và tài nguyên được chọn trong Settings → Bindings.</p>
+
+    <h3>Thiếu bảng trong D1</h3>
+    <p>Kiểm tra đã chạy file migration đúng phiên bản trên đúng database chưa.</p>
+
+    <h3>Trang setup hoặc đăng nhập lỗi</h3>
+    <p>Kiểm tra D1 binding, schema, SESSION_SECRET và log của Worker.</p>
+
+    <h3>Deploy lỗi</h3>
+    <p>Kiểm tra entry point, dependencies và hướng dẫn build trong README của source ProCDN.</p>
+  </section>
+
+  <section>
+    <h2>Checklist trước khi sử dụng</h2>
+    <ul>
+      <li>D1 đã tạo và schema đã được khởi tạo.</li>
+      <li>KV namespace đã tạo.</li>
+      <li>D1 binding tên <code>db</code> đã được thêm.</li>
+      <li>KV binding tên <code>kv</code> đã được thêm.</li>
+      <li>SESSION_SECRET đã được cấu hình an toàn.</li>
+      <li>Worker đã deploy thành công.</li>
+      <li>Tài khoản quản trị đầu tiên đã được tạo.</li>
+      <li>Đã kiểm thử CDN, cache và trang quản trị.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  ProCDN Documentation · Hướng dẫn triển khai trên Cloudflare
+</footer>
+
+<script>
+  // Tự động thêm nút sao chép cho các khối code.
+  document.querySelectorAll("pre").forEach(function (pre) {
+    const bar = document.createElement("div");
+    bar.className = "copybar";
+
+    const label = document.createElement("span");
+    label.textContent = "CODE";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Sao chép";
+
+    button.addEventListener("click", async function () {
+      const code = pre.querySelector("code");
+      const text = code ? code.innerText : pre.innerText;
+
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Đã sao chép!";
+      } catch {
+        button.textContent = "Không thể sao chép";
+      }
+
+      setTimeout(function () {
+        button.textContent = "Sao chép";
+      }, 1800);
+    });
+
+    bar.append(label, button);
+    pre.parentNode.insertBefore(bar, pre);
+  });
+</script>
+
+</body>
+</html>
